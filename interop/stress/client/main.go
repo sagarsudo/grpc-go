@@ -35,8 +35,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/google"
 	"google.golang.org/grpc/credentials/alts"
+	"google.golang.org/grpc/credentials/google"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/interop"
@@ -63,13 +63,12 @@ var (
 	numStubsPerChannel    = flag.Int("num_stubs_per_channel", 1, "Number of client stubs per each connection to server")
 	metricsPort           = flag.Int("metrics_port", 8081, "The port at which the stress client exposes QPS metrics")
 	useTLS                = flag.Bool("use_tls", false, "Connection uses TLS if true, else plain TCP")
-	useALTS                                = flag.Bool("use_alts", false, "Connection uses ALTS if true (this option can only be used on GCP)")
+	useALTS               = flag.Bool("use_alts", false, "Connection uses ALTS if true (this option can only be used on GCP)")
 	testCA                = flag.Bool("use_test_ca", false, "Whether to replace platform root CAs with test CA as the CA root")
 	tlsServerName         = flag.String("server_host_override", "foo.test.google.fr", "The server name use to verify the hostname returned by TLS handshake if it is not empty. Otherwise, --server_host is used.")
 	caFile                = flag.String("ca_file", "", "The file containing the CA root cert file")
 	customCredentialsType = flag.String("custom_credentials_type", "", "Custom credentials type to use")
 	altsHSAddr            = flag.String("alts_handshaker_service_address", "", "ALTS handshaker gRPC service address")
-
 
 	totalNumCalls int64
 	logger        = grpclog.Component("stress")
@@ -98,6 +97,7 @@ func parseTestCases(testCaseString string) []testCaseWithWeight {
 			"large_unary",
 			"client_streaming",
 			"server_streaming",
+			"long_server_streaming",
 			"ping_pong",
 			"empty_stream",
 			"timeout_on_sleeping_server",
@@ -242,6 +242,8 @@ func performRPCs(gauge *gauge, conn *grpc.ClientConn, selector *weightedRandomTe
 			interop.DoClientStreaming(ctx, client)
 		case "server_streaming":
 			interop.DoServerStreaming(ctx, client)
+		case "long_server_streaming":
+			interop.DoLongServerStreaming(ctx, client, 100)
 		case "ping_pong":
 			interop.DoPingPong(ctx, client)
 		case "empty_stream":
@@ -342,10 +344,10 @@ func main() {
 	testSelector := newWeightedRandomTestSelector(tests)
 	metricsServer := newMetricsServer()
 
-	if (*useTLS && *useALTS) {
+	if *useTLS && *useALTS {
 		logger.Fatalf("only one of TLS or ALTS can be used")
 	}
-	
+
 	var wg sync.WaitGroup
 	wg.Add(len(addresses) * *numChannelsPerServer * *numStubsPerChannel)
 	stop := make(chan bool)

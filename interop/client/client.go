@@ -87,6 +87,7 @@ var (
         large_unary : single request and (large) response;
         client_streaming : request streaming with single response;
         server_streaming : single request with response streaming;
+        long_server_streaming: single request with long response streaming;
         ping_pong : full-duplex streaming;
         empty_stream : full-duplex streaming with zero message;
         timeout_on_sleeping_server: fullduplex streaming on a sleeping server;
@@ -282,6 +283,8 @@ func main() {
 	case "server_streaming":
 		interop.DoServerStreaming(ctx, tc)
 		logger.Infoln("ServerStreaming done")
+	case "long_server_streaming":
+		interop.DoLongServerStreaming(ctx, tc, 100)
 	case "ping_pong":
 		interop.DoPingPong(ctx, tc)
 		logger.Infoln("Pingpong done")
