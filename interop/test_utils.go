@@ -134,6 +134,51 @@ func DoClientStreaming(ctx context.Context, tc testgrpc.TestServiceClient, args 
 	}
 }
 
+// DoLongServerStreaming performs a server streaming RPC.
+func DoLongServerStreaming(ctx context.Context, tc testgrpc.TestServiceClient, streamLength int, args ...grpc.CallOption) {
+	respSizesLen := len(respSizes)
+	respParam := make([]*testpb.ResponseParameters, streamLength)
+	for i := 0; i < streamLength; i++ {
+		respParam[i] = &testpb.ResponseParameters{
+			Size: int32(respSizes[i%respSizesLen]),
+		}
+	}
+	req := &testpb.StreamingOutputCallRequest{
+		ResponseType:       testpb.PayloadType_COMPRESSABLE,
+		ResponseParameters: respParam,
+	}
+	stream, err := tc.StreamingOutputCall(ctx, req, args...)
+	if err != nil {
+		logger.Fatalf("%v.StreamingOutputCall(_) = _, %v", tc, err)
+	}
+	var rpcStatus error
+	var respCnt int
+	var index int
+	for {
+		reply, err := stream.Recv()
+		if err != nil {
+			rpcStatus = err
+			break
+		}
+		t := reply.GetPayload().GetType()
+		if t != testpb.PayloadType_COMPRESSABLE {
+			logger.Fatalf("Got the reply of type %d, want %d", t, testpb.PayloadType_COMPRESSABLE)
+		}
+		size := len(reply.GetPayload().GetBody())
+		if size != respSizes[index%respSizesLen] {
+			logger.Fatalf("Got reply body of length %d, want %d", size, respSizes[index%respSizesLen])
+		}
+		index++
+		respCnt++
+	}
+	if rpcStatus != io.EOF {
+		logger.Fatalf("Failed to finish the server streaming rpc: %v", rpcStatus)
+	}
+	if respCnt != streamLength {
+		logger.Fatalf("Got %d reply, want %d", streamLength, respCnt)
+	}
+}
+
 // DoServerStreaming performs a server streaming RPC.
 func DoServerStreaming(ctx context.Context, tc testgrpc.TestServiceClient, args ...grpc.CallOption) {
 	respParam := make([]*testpb.ResponseParameters, len(respSizes))
