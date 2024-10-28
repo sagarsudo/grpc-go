@@ -52,7 +52,7 @@ import (
 
 var (
 	reqSizes            = []int{27182, 8, 1828, 45904}
-	respSizes           = []int{31415, 9, 2653, 58979}
+	respSizes           = []int{31415, 900, 8706, 58979}
 	largeReqSize        = 271828
 	largeRespSize       = 314159
 	initialMetadataKey  = "x-grpc-test-echo-initial"
