@@ -69,6 +69,7 @@ var (
 	caFile                = flag.String("ca_file", "", "The file containing the CA root cert file")
 	customCredentialsType = flag.String("custom_credentials_type", "", "Custom credentials type to use")
 	altsHSAddr            = flag.String("alts_handshaker_service_address", "", "ALTS handshaker gRPC service address")
+	responseSize          = flag.Int("response_size", 10000, "size in bytes for the output from the server, use only when test case is long_server_streaming")
 
 	totalNumCalls int64
 	logger        = grpclog.Component("stress")
@@ -227,6 +228,9 @@ func startServer(server *server, port int) {
 
 // performRPCs uses weightedRandomTestSelector to select test case and runs the tests.
 func performRPCs(gauge *gauge, conn *grpc.ClientConn, selector *weightedRandomTestSelector, stop <-chan bool) {
+	if *responseSize < 10000 {
+		*responseSize = 10000
+	}
 	client := testgrpc.NewTestServiceClient(conn)
 	var numCalls int64
 	ctx := context.Background()
@@ -243,7 +247,7 @@ func performRPCs(gauge *gauge, conn *grpc.ClientConn, selector *weightedRandomTe
 		case "server_streaming":
 			interop.DoServerStreaming(ctx, client)
 		case "long_server_streaming":
-			interop.DoLongServerStreaming(ctx, client, 100)
+			interop.DoLongServerStreaming(ctx, client, (*responseSize)/10000*4)
 		case "ping_pong":
 			interop.DoPingPong(ctx, client)
 		case "empty_stream":
@@ -263,8 +267,8 @@ func performRPCs(gauge *gauge, conn *grpc.ClientConn, selector *weightedRandomTe
 		gauge.set(int64(float64(numCalls) / time.Since(startTime).Seconds()))
 
 		select {
-			atomic.AddInt64(&totalNumCalls, numCalls);
 		case <-stop:
+			atomic.AddInt64(&totalNumCalls, numCalls)
 			return
 		default:
 		}
