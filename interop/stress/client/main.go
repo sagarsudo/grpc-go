@@ -260,10 +260,10 @@ func performRPCs(gauge *gauge, conn *grpc.ClientConn, selector *weightedRandomTe
 			interop.DoCustomMetadata(ctx, client)
 		}
 		numCalls++
-		defer func() { atomic.AddInt64(&totalNumCalls, numCalls) }()
 		gauge.set(int64(float64(numCalls) / time.Since(startTime).Seconds()))
 
 		select {
+			atomic.AddInt64(&totalNumCalls, numCalls);
 		case <-stop:
 			return
 		default:
